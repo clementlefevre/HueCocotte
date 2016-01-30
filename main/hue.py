@@ -94,7 +94,7 @@ class HueCocotte():
 
         except PhueRequestTimeout:
             logger.warning("Could not connect with Bridge !!!")
-            self.send_mail(EMAIL_SUBJECT, "Pas de signal avec {0}".format(IP_BRIDGE)
+            self.send_mail(EMAIL_SUBJECT, "No connection with bridge [{0}]".format(IP_BRIDGE)
                            )
             FAILURES_COUNT += 1
 

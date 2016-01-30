@@ -2,8 +2,8 @@ import smtplib
 
 __author__ = 'ThinkPad'
 
-EMAIL_ADDRESS = "clement.san2000@gmail.com"
-EMAIL_PASSWORD = "ninaditkindoupetitkindou2000"
+EMAIL_ADDRESS = ""
+EMAIL_PASSWORD = ""
 
 
 def send_mail(value):

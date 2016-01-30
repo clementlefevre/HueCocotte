@@ -5,19 +5,18 @@ import sys
 
 import schedule as schedule
 
+from config import EMAIL_PASSWORD, EMAIL_ADDRESS, IP_BRIDGE
+
 __author__ = 'ThinkPad'
 
 from beautifulhue.api import Bridge
 from phue import Bridge as phueBridge, PhueRequestTimeout
 
-IP_BRIDGE = ''
-
 START_BRIGHTNESS = 254
 START_COLORTEMP = 369
 START_SATURATION = 144
 START_XY = [0.4595, 0.4105]
-EMAIL_ADDRESS = ""
-EMAIL_PASSWORD = ""
+
 EMAIL_SUBJECT = "Philips HUE"
 username = 'clementsan'
 bridge = Bridge(device={'ip': IP_BRIDGE}, user={'name': username})
@@ -113,7 +112,7 @@ class HueCocotte():
         server.starttls()
         server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
         message = 'Subject: %s\n\n%s' % (title, value)
-        server.sendmail(EMAIL_ADDRESS, "clement.san@gmail.com", message)
+        server.sendmail(EMAIL_ADDRESS, EMAIL_ADDRESS, message)
         server.quit()
 
 

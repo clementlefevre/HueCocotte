@@ -15,7 +15,8 @@ from phue import Bridge as phueBridge, PhueRequestTimeout
 START_BRIGHTNESS = 254
 START_COLORTEMP = 369
 START_SATURATION = 144
-START_XY = [0.4595, 0.4105]
+
+OPTIMAL_XY = [0.509, 0.4149]
 
 EMAIL_SUBJECT = "Philips HUE"
 username = 'clementsan'
@@ -28,6 +29,9 @@ logger = logging.getLogger('logger_hue')
 
 def exception_handler(type, value, tb):
     logger.exception("Uncaught exception: {0}".format(str(value)))
+    logger.warning("Exception occured")
+    logger.warning(value)
+
     HueCocotte().send_mail(EMAIL_SUBJECT, "Error by Philips HUE : {0}".format(value))
 
 
@@ -61,6 +65,13 @@ class HueCocotte():
             if 'error' in response[0]:
                 if response[0]['error']['type'] != 101:
                     print 'Unhandled error creating configuration on the Hue'
+                    logger.exception(
+                        "sys.exit(response) activated : Unhandled error creating configuration on the Hue : ")
+                    logger.exception("Resource : {0}".format(resource))
+                    logger.exception("Response from Bridge : {0}".format(response))
+                    HueCocotte().send_mail(EMAIL_SUBJECT, "Error by Philips HUE : {0}".format(
+                        "sys.exit(response) activated : Unhandled error creating configuration on the Hue : Resource : {0} "
+                        "Response from Bridge : {1}".format(resource, response)))
                     sys.exit(response)
             else:
                 created = True
@@ -70,7 +81,11 @@ class HueCocotte():
 
     def getSystemData(self):
         resource = {'which': 'system'}
-        return bridge.config.get(resource)['resource']
+        try:
+
+            return bridge.config.get(resource)['resource']
+        except Exception:
+            logger.warning("Could get bridge resource")
 
     def set_all_light(self):
 
@@ -83,17 +98,22 @@ class HueCocotte():
             lights = b.lights
 
             for light in lights:
-                if light.brightness == START_BRIGHTNESS and light.colortemp == START_COLORTEMP and light.saturation == START_SATURATION and light.xy == START_XY:
+                print("Light : {0} - xy : {1} ".format(light.name, light.xy))
+                delta = self.get_xy_delta(light)
+                print(delta)
+                if delta > 10:
+                    print ("The light in the {0} has been switched !".format(light.name))
+                    logger.warning("The light in the {0} has been switched !".format(light.name))
                     self.send_mail(EMAIL_SUBJECT, "The light in the {0} has been switched !".format(light.name))
                     light.brightness = 207
                     light.colortemp = 459
                     light.colortemp_k = 2179
                     light.saturation = 209
                     light.saturation = 100
-                    light.xy = [0.509, 0.4149]
+                    light.xy = OPTIMAL_XY
 
         except PhueRequestTimeout:
-            logger.warning("Could not connect with Bridge !!!")
+            logger.warning(" PhueRequestTimeout - Could not connect with Bridge !!!")
             self.send_mail(EMAIL_SUBJECT, "No connection with bridge [{0}]".format(IP_BRIDGE)
                            )
             FAILURES_COUNT += 1
@@ -102,6 +122,7 @@ class HueCocotte():
         global FAILURES_COUNT
         FAILURES_COUNT = 0
         schedule.every(5).seconds.do(self.set_all_light)
+        logger.warning("Failure count : {0}".format(FAILURES_COUNT))
 
         while 1 and FAILURES_COUNT == 0:
             schedule.run_pending()
@@ -114,6 +135,10 @@ class HueCocotte():
         message = 'Subject: %s\n\n%s' % (title, value)
         server.sendmail(EMAIL_ADDRESS, EMAIL_ADDRESS, message)
         server.quit()
+
+    def get_xy_delta(self, light):
+        xy_delta = [light.xy[0] - OPTIMAL_XY[0], light.xy[1] - OPTIMAL_XY+[1]]
+        return (abs(xy_delta[0]) + abs(xy_delta[1])) * 1000
 
 
 if __name__ == '__main__':

@@ -2,6 +2,7 @@ import logging
 import smtplib
 import time
 import sys
+import pprint
 
 import schedule as schedule
 
@@ -18,6 +19,11 @@ START_SATURATION = 144
 
 OPTIMAL_XY = [0.509, 0.4149]
 
+START_PATTERN = {'_brightness': 254, '_colortemp': 369, '_hue': 14922,
+                 '_saturation': 144}
+
+MATCHING_THRESHOLD = 20
+
 EMAIL_SUBJECT = "Philips HUE"
 username = 'clementsan'
 bridge = Bridge(device={'ip': IP_BRIDGE}, user={'name': username})
@@ -25,10 +31,11 @@ bridge = Bridge(device={'ip': IP_BRIDGE}, user={'name': username})
 logging.basicConfig(filename='hue.log', filemode='w', level=logging.WARNING, format='%(asctime)s %(message)s')
 
 logger = logging.getLogger('logger_hue')
+pp = pprint.PrettyPrinter(indent=4)
 
 
 def exception_handler(type, value, tb):
-    logger.exception("Uncaught exception: {0}".format(str(value)))
+    logger.exception("Uncaught exception: {0} - {1} - {2}".format(str(type), str(value), str(tb)))
     logger.warning("Exception occured")
     logger.warning(value)
 
@@ -98,10 +105,11 @@ class HueCocotte():
             lights = b.lights
 
             for light in lights:
-                print("Light : {0} - xy : {1} ".format(light.name, light.xy))
-                delta = self.get_xy_delta(light)
-                print(delta)
-                if delta > 10:
+
+                xy_delta = self.get_xy_delta(light)
+                threshold = self.is_start_pattern(light)
+
+                if xy_delta > 10 and threshold < MATCHING_THRESHOLD:
                     print ("The light in the {0} has been switched !".format(light.name))
                     logger.warning("The light in the {0} has been switched !".format(light.name))
                     self.send_mail(EMAIL_SUBJECT, "The light in the {0} has been switched !".format(light.name))
@@ -137,8 +145,25 @@ class HueCocotte():
         server.quit()
 
     def get_xy_delta(self, light):
-        xy_delta = [light.xy[0] - OPTIMAL_XY[0], light.xy[1] - OPTIMAL_XY+[1]]
+
+        xy_delta = [light.xy[0] - OPTIMAL_XY[0], light.xy[1] - OPTIMAL_XY[1]]
         return (abs(xy_delta[0]) + abs(xy_delta[1])) * 1000
+
+    def is_start_pattern(self, light):
+        light_dict = light.__dict__
+        matching = 0
+        for key in START_PATTERN:
+            if light_dict[key] is not None:
+                matching += self.pattern_threshold(key, light_dict[key])
+
+        if matching > MATCHING_THRESHOLD:
+            return True
+        else:
+            return False
+
+    def pattern_threshold(self, parameter, value):
+        delta_threshold = abs(START_PATTERN[parameter] * 100 - value * 100) / START_PATTERN[parameter]
+        return delta_threshold
 
 
 if __name__ == '__main__':

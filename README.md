@@ -14,7 +14,9 @@ A Raspberry PI is the perfect tool to use it.
 ## Instructions
 
 Copy the hue.py file to your computer / rasperry pi and launch it.
-Press the zigbee button. ![alt tag](http://ecx.images-amazon.com/images/I/41n7A6ZEwCL._SY344_BO1,204,203,200_.jpg)
+Press the zigbee button. 
+
+![alt tag](http://ecx.images-amazon.com/images/I/41n7A6ZEwCL._SY344_BO1,204,203,200_.jpg)
 
 
 

@@ -22,7 +22,7 @@ MATCHING_THRESHOLD = 20
 
 bridge = Bridge(device={'ip': IP_BRIDGE}, user={'name': USERNAME})
 
-logging.basicConfig(filename='hue.log', filemode='w', level=logging.INFO, format='%(asctime)s %(message)s')
+logging.basicConfig(filename='hue.log', filemode='w', level=logging.WARNING, format='%(asctime)s %(message)s')
 
 logger = logging.getLogger('logger_hue')
 

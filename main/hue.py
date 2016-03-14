@@ -1,42 +1,68 @@
+#!/usr/bin/env python
+
+__author__ = 'ThinkPad'
+
+import httplib
+import json
+import socket
 import logging
 import smtplib
 import time
 import sys
-import pprint
 
 import schedule as schedule
-
-from config import EMAIL_PASSWORD, EMAIL_ADDRESS, IP_BRIDGE
-
-__author__ = 'ThinkPad'
-
+from config import EMAIL_PASSWORD, EMAIL_ADDRESS, IP_BRIDGE, EMAIL_SUBJECT, USERNAME, OPTIMAL_XY
 from beautifulhue.api import Bridge
-from phue import Bridge as phueBridge, PhueRequestTimeout
-
-START_BRIGHTNESS = 254
-START_COLORTEMP = 369
-START_SATURATION = 144
-
-OPTIMAL_XY = [0.509, 0.4149]
+import phue
 
 START_PATTERN = {'_brightness': 254, '_colortemp': 369, '_hue': 14922,
                  '_saturation': 144}
 
 MATCHING_THRESHOLD = 20
 
-EMAIL_SUBJECT = "Philips HUE"
-username = 'clementsan'
-bridge = Bridge(device={'ip': IP_BRIDGE}, user={'name': username})
+bridge = Bridge(device={'ip': IP_BRIDGE}, user={'name': USERNAME})
 
-logging.basicConfig(filename='hue.log', filemode='w', level=logging.WARNING, format='%(asctime)s %(message)s')
+logging.basicConfig(filename='hue.log', filemode='w', level=logging.INFO, format='%(asctime)s %(message)s')
 
 logger = logging.getLogger('logger_hue')
-pp = pprint.PrettyPrinter(indent=4)
+
+
+# Override phue package Bridge.request method to avoid timeout.
+def _request(self, mode='GET', address=None, data=None):
+    """ Utility function for HTTP GET/PUT requests for the API"""
+    connection = httplib.HTTPConnection(self.ip, timeout=200)
+
+    try:
+        if mode == 'GET' or mode == 'DELETE':
+            connection.request(mode, address)
+        if mode == 'PUT' or mode == 'POST':
+            connection.request(mode, address, data)
+
+        logger.debug("{0} {1} {2}".format(mode, address, str(data)))
+
+    except socket.timeout:
+        error = "{} Request to {}{} timed out.".format(mode, self.ip, address)
+
+        logger.exception(error)
+        raise phue.PhueRequestTimeout(None, error)
+
+    result = connection.getresponse()
+    connection.close()
+    if phue.PY3K:
+        return json.loads(str(result.read(), encoding='utf-8'))
+    else:
+        result_str = result.read()
+        logger.debug(result_str)
+        return json.loads(result_str)
+
+
+# Implement overriden method.
+phue.Bridge.request = _request
 
 
 def exception_handler(type, value, tb):
     logger.exception("Uncaught exception: {0} - {1} - {2}".format(str(type), str(value), str(tb)))
-    logger.warning("Exception occured")
+    logger.warning("Exception occurred")
     logger.warning(value)
 
     HueCocotte().send_mail(EMAIL_SUBJECT, "Error by Philips HUE : {0}".format(value))
@@ -67,7 +93,7 @@ class HueCocotte():
         created = False
         print '***********************Press the button on the Hue bridge*************************'
         while not created:
-            resource = {'user': {'devicetype': 'beautifulhuetest', 'name': username}}
+            resource = {'user': {'devicetype': 'beautifulhuetest', 'name': USERNAME}}
             response = bridge.config.create(resource)['resource']
             if 'error' in response[0]:
                 if response[0]['error']['type'] != 101:
@@ -98,7 +124,7 @@ class HueCocotte():
 
         global FAILURES_COUNT
 
-        b = phueBridge(IP_BRIDGE)
+        b = phue.Bridge(IP_BRIDGE)
 
         try:
             b.connect()
@@ -111,7 +137,7 @@ class HueCocotte():
 
                 if xy_delta > 10 and threshold < MATCHING_THRESHOLD:
                     print ("The light in the {0} has been switched !".format(light.name))
-                    logger.warning("The light in the {0} has been switched !".format(light.name))
+                    logger.info("The light in the {0} has been switched !".format(light.name))
                     self.send_mail(EMAIL_SUBJECT, "The light in the {0} has been switched !".format(light.name))
                     light.brightness = 207
                     light.colortemp = 459
@@ -120,7 +146,7 @@ class HueCocotte():
                     light.saturation = 100
                     light.xy = OPTIMAL_XY
 
-        except PhueRequestTimeout:
+        except phue.PhueRequestTimeout:
             logger.warning(" PhueRequestTimeout - Could not connect with Bridge !!!")
             self.send_mail(EMAIL_SUBJECT, "No connection with bridge [{0}]".format(IP_BRIDGE)
                            )

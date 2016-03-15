@@ -2,9 +2,6 @@
 
 __author__ = 'ThinkPad'
 
-import httplib
-import json
-import socket
 import logging
 import smtplib
 import time
@@ -28,48 +25,47 @@ logger = logging.getLogger('logger_hue')
 
 
 # Override phue package Bridge.request method to avoid timeout.
-def _request(self, mode='GET', address=None, data=None):
-    """ Utility function for HTTP GET/PUT requests for the API"""
-    connection = httplib.HTTPConnection(self.ip, timeout=200)
+# def _request(self, mode='GET', address=None, data=None):
+#     """ Utility function for HTTP GET/PUT requests for the API"""
+#     connection = httplib.HTTPConnection(self.ip, timeout=200)
+#
+#     try:
+#         if mode == 'GET' or mode == 'DELETE':
+#             connection.request(mode, address)
+#         if mode == 'PUT' or mode == 'POST':
+#             connection.request(mode, address, data)
+#
+#         logger.debug("{0} {1} {2}".format(mode, address, str(data)))
+#
+#     except socket.timeout:
+#         error = "{} Request to {}{} timed out.".format(mode, self.ip, address)
+#
+#         logger.exception(error)
+#         raise phue.PhueRequestTimeout(None, error)
+#
+#     result = connection.getresponse()
+#     connection.close()
+#     if phue.PY3K:
+#         return json.loads(str(result.read(), encoding='utf-8'))
+#     else:
+#         result_str = result.read()
+#         logger.debug(result_str)
+#         return json.loads(result_str)
+#
+# # Implement overriden method.
+# phue.Bridge.request = _request
 
-    try:
-        if mode == 'GET' or mode == 'DELETE':
-            connection.request(mode, address)
-        if mode == 'PUT' or mode == 'POST':
-            connection.request(mode, address, data)
 
-        logger.debug("{0} {1} {2}".format(mode, address, str(data)))
-
-    except socket.timeout:
-        error = "{} Request to {}{} timed out.".format(mode, self.ip, address)
-
-        logger.exception(error)
-        raise phue.PhueRequestTimeout(None, error)
-
-    result = connection.getresponse()
-    connection.close()
-    if phue.PY3K:
-        return json.loads(str(result.read(), encoding='utf-8'))
-    else:
-        result_str = result.read()
-        logger.debug(result_str)
-        return json.loads(result_str)
-
-
-# Implement overriden method.
-phue.Bridge.request = _request
-
-
-def exception_handler(type, value, tb):
-    logger.exception("Uncaught exception: {0} - {1} - {2}".format(str(type), str(value), str(tb)))
-    logger.warning("Exception occurred")
-    logger.warning(value)
-
-    HueCocotte().send_mail(EMAIL_SUBJECT, "Error by Philips HUE : {0}".format(value))
+# def exception_handler(type, value, tb):
+#     logger.exception("Uncaught exception: {0} - {1} - {2}".format(str(type), str(value), str(tb)))
+#     logger.warning("Exception occurred")
+#     logger.warning(value)
+#
+#     HueCocotte().send_mail(EMAIL_SUBJECT, "Error by Philips HUE : {0}".format(value))
 
 
 # Install exception handler
-sys.excepthook = exception_handler
+# sys.excepthook = exception_handler
 
 
 class HueCocotte():
@@ -78,8 +74,8 @@ class HueCocotte():
         response = self.getSystemData()
 
         if 'lights' in response:
-            print 'Connected to the Hub'
-            print response['lights']
+            logger.warning('Connected to the Hub')
+            logger.warning(response['lights'])
         elif 'error' in response[0]:
             error = response[0]['error']
             if error['type'] == 1:
@@ -91,34 +87,32 @@ class HueCocotte():
         # bridge.config.delete(resource)
 
         created = False
-        print '***********************Press the button on the Hue bridge*************************'
+        logger.warning('***********************Press the button on the Hue bridge*************************')
         while not created:
             resource = {'user': {'devicetype': 'beautifulhuetest', 'name': USERNAME}}
             response = bridge.config.create(resource)['resource']
             if 'error' in response[0]:
                 if response[0]['error']['type'] != 101:
                     print 'Unhandled error creating configuration on the Hue'
-                    logger.exception(
+                    logger.error(
                         "sys.exit(response) activated : Unhandled error creating configuration on the Hue : ")
-                    logger.exception("Resource : {0}".format(resource))
-                    logger.exception("Response from Bridge : {0}".format(response))
+                    logger.error("Resource : {0}".format(resource))
+                    logger.error("Response from Bridge : {0}".format(response))
                     HueCocotte().send_mail(EMAIL_SUBJECT, "Error by Philips HUE : {0}".format(
                         "sys.exit(response) activated : Unhandled error creating configuration on the Hue : Resource : {0} "
                         "Response from Bridge : {1}".format(resource, response)))
                     sys.exit(response)
             else:
                 created = True
-
-                print "Bridge connected with username : {0}".format(response[0]['success']['username'])
+                logger.warning("Bridge connected with username : {0}".format(response[0]['success']['username']))
                 self.polling()
 
     def getSystemData(self):
         resource = {'which': 'system'}
         try:
-
             return bridge.config.get(resource)['resource']
         except Exception:
-            logger.warning("Could get bridge resource")
+            logger.warning("Could not get bridge resource")
 
     def set_all_light(self):
 
@@ -136,8 +130,7 @@ class HueCocotte():
                 threshold = self.is_start_pattern(light)
 
                 if xy_delta > 10 and threshold < MATCHING_THRESHOLD:
-                    print ("The light in the {0} has been switched !".format(light.name))
-                    logger.info("The light in the {0} has been switched !".format(light.name))
+                    logger.warning("The light in the {0} has been switched !".format(light.name))
                     self.send_mail(EMAIL_SUBJECT, "The light in the {0} has been switched !".format(light.name))
                     light.brightness = 207
                     light.colortemp = 459
@@ -147,7 +140,7 @@ class HueCocotte():
                     light.xy = OPTIMAL_XY
 
         except phue.PhueRequestTimeout:
-            logger.warning(" PhueRequestTimeout - Could not connect with Bridge !!!")
+            logger.warning("PhueRequestTimeout - Could not connect with Bridge !!!")
             self.send_mail(EMAIL_SUBJECT, "No connection with bridge [{0}]".format(IP_BRIDGE)
                            )
             FAILURES_COUNT += 1

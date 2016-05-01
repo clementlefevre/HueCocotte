@@ -89,7 +89,7 @@ class HueCocotte():
         created = False
         logger.warning('***********************Press the button on the Hue bridge*************************')
         while not created:
-            resource = {'user': {'devicetype': 'beautifulhuetest', 'name': USERNAME}}
+            resource = {'user': {'devicetype': 'Philips hue', 'name': USERNAME}}
             response = bridge.config.create(resource)['resource']
             if 'error' in response[0]:
                 if response[0]['error']['type'] != 101:

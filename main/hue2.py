@@ -59,7 +59,7 @@ class HueCocotte():
             lights = b.lights
 
             for light in lights:
-                
+
                 xy_delta = self.get_xy_delta(light)
                 threshold = self.is_start_pattern(light)
 
@@ -69,12 +69,10 @@ class HueCocotte():
                     print 'light connected'
                     light.brightness = 207
                     light.colortemp = 459
-                    light.colortemp = 155
                     light.colortemp_k = 2179
-                    light.colortemp_k = 5500
                     light.saturation = 209
                     light.saturation = 100
-                    light.xy = [0.168,0.041]
+                    light.xy = OPTIMAL_XY
 
 
         except PhueRequestTimeout:
@@ -124,6 +122,5 @@ class HueCocotte():
 
 if __name__ == '__main__':
     HueCocotte().main()
-
 
 

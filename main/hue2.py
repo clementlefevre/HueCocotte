@@ -1,14 +1,15 @@
 #!/usr/bin/env python
-import schedule
+
 
 __author__ = 'ThinkPad'
 
 import logging
 import smtplib
 import time
+import schedule
 
 
-from config import EMAIL_PASSWORD, EMAIL_ADDRESS, IP_BRIDGE, EMAIL_SUBJECT, USERNAME, OPTIMAL_XY
+from config import EMAIL_PASSWORD, EMAIL_ADDRESS, IP_BRIDGE, EMAIL_SUBJECT, OPTIMAL_XY
 
 from phue import Bridge, PhueRequestTimeout
 
@@ -16,8 +17,6 @@ START_PATTERN = {'_brightness': 254, '_colortemp': 369, '_hue': 14922,
                  '_saturation': 144}
 
 MATCHING_THRESHOLD = 20
-
-
 
 logging.basicConfig(filename='hue.log', filemode='w', level=logging.WARNING, format='%(asctime)s %(message)s')
 
@@ -60,19 +59,23 @@ class HueCocotte():
             lights = b.lights
 
             for light in lights:
-
+                
                 xy_delta = self.get_xy_delta(light)
                 threshold = self.is_start_pattern(light)
 
                 if xy_delta > 10 and threshold < MATCHING_THRESHOLD:
                     logger.warning("The light in the {0} has been switched !".format(light.name))
-                    self.send_mail(EMAIL_SUBJECT, "The light in the {0} has been switched !".format(light.name))
+                    #self.send_mail(EMAIL_SUBJECT, "The light in the {0} has been switched !".format(light.name))
+                    print 'light connected'
                     light.brightness = 207
                     light.colortemp = 459
+                    light.colortemp = 155
                     light.colortemp_k = 2179
+                    light.colortemp_k = 5500
                     light.saturation = 209
                     light.saturation = 100
-                    light.xy = OPTIMAL_XY
+                    light.xy = [0.168,0.041]
+
 
         except PhueRequestTimeout:
             logger.warning("PhueRequestTimeout - Could not connect with Bridge !!!")
@@ -84,7 +87,6 @@ class HueCocotte():
         global FAILURES_COUNT
         FAILURES_COUNT = 0
         schedule.every(5).seconds.do(self.set_all_light)
-
 
         while 1 and FAILURES_COUNT == 0:
             schedule.run_pending()
